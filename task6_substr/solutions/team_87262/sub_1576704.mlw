@@ -1,0 +1,111 @@
+module MaxDigitSubstring
+
+  use int.Int
+  use ref.Ref
+  use array.Array
+  use bool.Bool
+
+  let max_start : ref int = ref 0
+  let max_len   : ref int = ref 0
+
+  predicate is_digit (c:int) = 48 <= c <= 57
+
+  let is_digit_b (c:int) : bool
+    ensures { (result = True) <-> is_digit c }
+  =
+    if c < 48 then False
+    else if c > 57 then False
+    else True
+
+  predicate digit_run (s: array int) (st: int) (len: int) =
+    0 <= st /\ 0 < len /\ st + len <= length s /\
+    (forall k:int. st <= k < st + len -> is_digit s[k])
+
+  predicate is_solution (s: array int) (st: int) (len: int) =
+    (len = 0 \/ digit_run s st len) /\
+    (forall i:int, l:int. digit_run s i l -> l <= len) /\
+    (forall i:int. digit_run s i len -> st <= i)
+
+  let max_digit_substring (s: array int) : unit
+    requires { length s > 0 }
+    writes   { max_start, max_len }
+    ensures  { is_solution s !max_start !max_len }
+  =
+    let n = length s in
+
+    let best_start = ref 0 in
+    let best_len   = ref 0 in
+
+    max_start := 0;
+    max_len   := 0;
+
+    let st = ref 0 in
+    while !st < n do
+      invariant { 0 <= !st <= n }
+
+      invariant {
+        !best_len = 0 \/
+        digit_run s !best_start !best_len
+      }
+
+      invariant {
+        forall i:int, l:int.
+          0 <= i < !st /\ digit_run s i l ->
+          l <= !best_len
+      }
+
+      invariant {
+        !best_len = 0 \/
+        (forall i:int.
+           0 <= i < !st /\ digit_run s i !best_len ->
+           !best_start <= i)
+      }
+
+      variant { n - !st }
+
+      let j   = ref !st in
+      let len = ref 0 in
+
+      while !j < n && is_digit_b s[!j] do
+        invariant { !st <= !j <= n }
+        invariant { 0 <= !len = !j - !st }
+        invariant {
+          forall k:int. !st <= k < !j -> is_digit s[k]
+        }
+        variant { n - !j }
+        j := !j + 1;
+        len := !len + 1
+      done;
+
+      if !len > 0 then begin
+        assert { digit_run s !st !len };
+
+        if !len > !best_len ||
+           (!len = !best_len && !st < !best_start)
+        then begin
+          best_len   := !len;
+          best_start := !st
+        end
+      end;
+
+      st := !st + 1
+    done;
+
+    max_start := !best_start;
+    max_len   := !best_len
+
+  let main () : unit =
+    let s = make 10 0 in  (* "v1eh2025a" *)
+    s[0] <- 118;
+    s[1] <- 49;
+    s[2] <- 101;
+    s[3] <- 104;
+    s[4] <- 50;
+    s[5] <- 48;
+    s[6] <- 50;
+    s[7] <- 53;
+    s[8] <- 97;
+	s[9] <- 18;
+    max_digit_substring s
+
+end

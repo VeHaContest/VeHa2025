@@ -1,0 +1,80 @@
+module LongestDigitSubstring
+
+  use bool.Bool
+  use int.Int
+  use ref.Ref
+  use array.Array
+
+  type char_t = int
+  type string_t = array char_t
+
+  type substr_t = {
+    s : string_t;
+    start : int;
+    len : int;
+  }
+
+  let function make_substr (s: string_t) (start: int) (len: int) : substr_t =
+    { s = s; start = start; len = len }
+
+  predicate is_digit (c: char_t) = 48 <= c /\ c <= 57
+
+  predicate in_range (start len n: int) =
+  0 <= start /\ 0 <= len /\ start + len <= n
+
+  predicate digits_in_range (s: string_t) (start len: int) =
+    in_range start len (length s) /\
+    (forall i: int. start <= i < start + len -> is_digit s[i])
+
+  axiom max_digits_are_digits:
+    forall s: string_t, max_start: int, max_length: int.
+      max_length > 0 ->
+      forall i: int. max_start <= i < max_start + max_length -> is_digit (s[i])
+
+
+  predicate valid (ss: substr_t) =
+    digits_in_range ss.s ss.start ss.len
+
+  let max_left_digits (s : string_t) (n: int) : substr_t
+    requires { 0 <= n <= length s }
+    ensures { valid result \/ result.len = 0 }
+
+  =
+    let max_start = ref (-1) in
+    let max_length = ref 0 in
+    let current_start = ref (-1) in
+    let current_length = ref 0 in
+
+    for i = 0 to n - 1 do
+      invariant { -1 <= !current_start <= i }
+      invariant { 0 <= !current_length <= i + 1 }
+      invariant { !current_start = -1 \/ !current_length > 0 }
+      invariant { 0 <= !max_length <= length s }
+      invariant { !max_length = 0 -> !max_start = -1 }
+      invariant { !current_start = -1 \/ (forall k. !current_start <= k < i -> is_digit s[k]) }
+      invariant { !max_length = 0 \/ digits_in_range s !max_start !max_length }
+
+      if s[i] >= 48 && s[i] <= 57 then
+        if !current_start = -1 then begin
+          current_start := i;
+          current_length := 1;
+        end else begin
+          current_length := !current_length + 1;
+        end
+      else begin
+        if !current_length > !max_length then begin
+          max_start := !current_start;
+          max_length := !current_length;
+        end;
+        current_start := -1;
+        current_length := 0;
+      end
+    done;
+
+    if !max_length > 0 then begin
+      assert { !max_length = 0 \/ digits_in_range s !max_start !max_length };
+      make_substr s !max_start !max_length
+    end else
+      make_substr s 0 0
+
+end
